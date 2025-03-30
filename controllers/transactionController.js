@@ -1,6 +1,10 @@
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import { z } from "zod";
+// import Otp from "../models/Otp.js";
+// import otpGenerator from "otp-generator";
+// import { sendOTP } from "../utils/mailer.js";
+import { generateOTP } from "../utils/generateOtp.js";
 
 const transactionSchema = z.object({
   amount: z.number().positive(),
@@ -76,6 +80,15 @@ export const transfer = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     if (receiver._id.equals(sender._id))
       return res.status(400).json({ message: "Cannot transfer to yourself" });
+
+    if (validatedData.amount <= 0)
+      return res.status(400).json({ message: "Invalid transfer amount" });
+
+    // const resEmail = await generateOTP(email);
+
+    // if (resEmail) {
+    //   return res.json({ message: `OTP sent successfully to ${resEmail}` });
+    // }
 
     sender.balance -= validatedData.amount;
     receiver.balance += validatedData.amount;

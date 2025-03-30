@@ -2,6 +2,8 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import Otp from "../models/Otp.js";
+import { generateOTP } from "../utils/generateOtp.js";
 
 const registerSchema = z.object({
   name: z.string().min(3),
@@ -13,35 +15,6 @@ const handleErrors = (err) => {
   // console.log(err.message, err.code, "here-----------------");
 
   const errors = {};
-
-  if (err.message === "You are not authorized to view this page") {
-    errors.message = "You are not authorized to view this page";
-    errors.code = 401;
-  }
-
-  //Check if email is correct(Login)
-  if (err.message === "Incorrect Email") {
-    errors.email = "Email is Incorrect";
-    errors.code = 401;
-  }
-
-  //Check if username is correct(Login)
-  if (err.message === "Incorrect Username") {
-    errors.username = "Username is Incorrect";
-    errors.code = 401;
-  }
-
-  //if user is not found
-  if (err.message === "Invalid Credentials") {
-    errors.invalid = "User Not Found";
-    errors.code = 404;
-  }
-
-  //Check if password is correct(Login)
-  if (err.message === "Incorrect Password") {
-    errors.password = "Password is Incorrect";
-    errors.code = 401;
-  }
 
   //Check if email exists
   if (err.code === 11000 && err.message.includes("email")) {
@@ -80,10 +53,18 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
     const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!user || !validPassword) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    if (user.twoFAEnabled) {
+      const resEmail = await generateOTP(email);
+      return res.json({ message: `OTP sent successfully to ${resEmail}` });
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
@@ -94,6 +75,54 @@ const login = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
+};
+
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const storedOtp = await Otp.findOne({ email, otp });
+
+    if (!storedOtp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (new Date() > storedOtp.expiresAt) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    // OTP is valid, delete it from DB
+    await Otp.deleteOne({ email });
+
+    // Generate JWT token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    res.json({
+      status: "success",
+      message: "OTP verified successfully",
+      token,
+      user: { id: user._id, name: user.name, email: user.email },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error verifying OTP" });
+  }
+};
+
+const setPin = async (req, res) => {
+  const { newPin } = req.body;
+  const userId = req.user.id;
+
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  user.pin = newPin; // Hash the new PIN before saving
+  await user.save();
+  return { success: true, message: "PIN set successfully!" };
 };
 
 const getProfile = async (req, res) => {
@@ -128,4 +157,23 @@ const updateProfile = async (req, res) => {
   }
 };
 
-export { register, login, getProfile, updateProfile };
+const enable2FA = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    user.twoFAEnabled = true;
+    await user.save();
+    res.json({ message: "2FA enabled" });
+  } catch (error) {
+    res.status(500).json({ message: "Error enabling 2FA" });
+  }
+};
+
+export {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  enable2FA,
+  verifyOTP,
+  setPin,
+};
