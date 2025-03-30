@@ -22,7 +22,7 @@ A secure and user-friendly **Digital Wallet API** built with **Express.js**, **P
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/ideateGudy/Secure-Digital-Wallet-API
-cd Secure-Digital-Wallet-API
+git clone https://github.com/ideateGudy/Digital_Wallet_Api
+cd Digital_Wallet_Api
 
 ```
