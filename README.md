@@ -1,6 +1,6 @@
 # 🏦 Digital Wallet API
 
-A secure and user-friendly **Digital Wallet API** built with **Express.js**, **Prisma ORM**, and **PostgreSQL**.
+A secure and user-friendly **Digital Wallet API** built with **Express.js** and **Mongodb**.
 This API provides user authentication, transaction processing>
 ## 🚀 Features
 
