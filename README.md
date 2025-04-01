@@ -5,7 +5,7 @@ A secure and user-friendly **Digital Wallet API** built with **Express.js** and 
 
 - **User Authentication** (JWT-based)
 - **Currency Conversion Support**
-- **2FA & OTP Verification: Enable/disable 2FA, OTP verification.**
+- **2FA Verification: Enable/disable 2FA/OTP verification.**
 - **Currency Conversion: Convert amounts between different currencies using `exchangerate-api`.**
 - **Transaction Management: Deposit, withdraw, transfer, transaction history.**
 
