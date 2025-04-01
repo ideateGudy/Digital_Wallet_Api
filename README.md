@@ -103,13 +103,13 @@ OTPs expire in 5 minutes.
 
 ---
 
-## Default Transaction PIN
+##  PIN
 
-A pin is required for each transaction
+A pin is required for transfer
 
 A default PIN is set for each user to secure transactions.
 
-Users can update their PIN in their profile settings.
+Users can update their PIN using the `/api/auth/set-pin` route.
 
 
 
