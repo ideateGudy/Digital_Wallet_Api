@@ -1,7 +1,7 @@
 # 🏦 Digital Wallet API
 
 A secure and user-friendly **Digital Wallet API** built with **Express.js** and **Mongodb**.
-This API provides user authentication, transaction processing>
+- This API provides user authentication, transaction processing, currency conversion, and two-factor authentication (2FA) functionalities.
 ## 🚀 Features
 
 - **User Authentication** (JWT-based)
