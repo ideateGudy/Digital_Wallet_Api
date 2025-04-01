@@ -13,8 +13,8 @@ A secure and user-friendly **Digital Wallet API** built with **Express.js** and 
 
 - **Backend:** Node.js, Express.js
 - **Database:** MongoDb (via mongoose)
-- **Security:** JWT, bcryptjs
-- **Other Tools:** Nodemon, axios, nodemailer, otp-generator, zod, Dotenv (environment management)
+- **Security:** JWT, bcryptjs, otp-generator.
+- **Other Tools:** Nodemon, axios, nodemailer,  zod, Dotenv (environment management)
 
 ## ⚡ Getting Started
 
