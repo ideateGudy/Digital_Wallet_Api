@@ -74,13 +74,15 @@ npm run dev
 | POST   | `/api/auth/verify-otp`   | Verify OTP for login/transfer | ✅ Yes       |
 | PATCH  | `/api/auth/set-pin`      | Set transaction PIN          | ✅ Yes       |
 | PATCH  | `/api/auth/update-password` | Update user password    | ✅ Yes       |
-
+```
 ### **Currency Conversion**
+```markdown
 | Method | Endpoint          | Description                     | Authentication |
 |--------|-------------------|---------------------------------|---------------|
 | POST   | `/api/currency/convert` | Convert currency          | ✅ Yes       |
-
+```
 ### **Transactions**
+```markdown
 | Method | Endpoint               | Description                 | Authentication |
 |--------|------------------------|-----------------------------|---------------|
 | GET    | `/api/transactions/`   | Get user transactions       | ✅ Yes       |
@@ -88,7 +90,7 @@ npm run dev
 | POST   | `/api/transactions/withdraw` | Withdraw money       | ✅ Yes       |
 | POST   | `/api/transactions/transfer` | Transfer money       | ✅ Yes       |
 | POST   | `/api/transactions/transfer/verify-otp` | Verify OTP for transfers | ✅ Yes |
-
+```
 ---
 
 ## OTP & 2FA Implementation
