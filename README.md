@@ -60,7 +60,6 @@ npm run dev
 
 ## API Endpoints
 
-## API Endpoints
 
 ### **Authentication**
 ```markdown
