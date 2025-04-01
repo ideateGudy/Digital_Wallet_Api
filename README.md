@@ -60,12 +60,34 @@ npm run dev
 
 ## API Endpoints
 
-Authentication
+## API Endpoints
 
-Currency Conversion
+### **Authentication**
+```markdown
+| Method | Endpoint                 | Description                  | Authentication |
+|--------|--------------------------|------------------------------|---------------|
+| POST   | `/api/auth/register`     | Register a new user          | ❌ No        |
+| POST   | `/api/auth/login`        | Login user                   | ❌ No        |
+| GET    | `/api/auth/profile/:id`  | Get user profile             | ✅ Yes       |
+| PATCH  | `/api/auth/profile/:id`  | Update user profile          | ✅ Yes       |
+| POST   | `/api/auth/toogle-2fa`   | Enable/Disable 2FA           | ✅ Yes       |
+| POST   | `/api/auth/verify-otp`   | Verify OTP for login/transfer | ✅ Yes       |
+| PATCH  | `/api/auth/set-pin`      | Set transaction PIN          | ✅ Yes       |
+| PATCH  | `/api/auth/update-password` | Update user password    | ✅ Yes       |
 
-Transactions
+### **Currency Conversion**
+| Method | Endpoint          | Description                     | Authentication |
+|--------|-------------------|---------------------------------|---------------|
+| POST   | `/api/currency/convert` | Convert currency          | ✅ Yes       |
 
+### **Transactions**
+| Method | Endpoint               | Description                 | Authentication |
+|--------|------------------------|-----------------------------|---------------|
+| GET    | `/api/transactions/`   | Get user transactions       | ✅ Yes       |
+| POST   | `/api/transactions/deposit` | Deposit money         | ✅ Yes       |
+| POST   | `/api/transactions/withdraw` | Withdraw money       | ✅ Yes       |
+| POST   | `/api/transactions/transfer` | Transfer money       | ✅ Yes       |
+| POST   | `/api/transactions/transfer/verify-otp` | Verify OTP for transfers | ✅ Yes |
 
 ---
 
