@@ -19,5 +19,5 @@ export const generateOTP = async (email) => {
   // Send OTP via email
   await sendOTP(email, otp);
 
-  return email;
+  return otp;
 };

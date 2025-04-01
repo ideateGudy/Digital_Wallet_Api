@@ -16,6 +16,17 @@ const handleErrors = (err) => {
 
   const errors = {};
 
+  //Incorrect email
+  if (err.message === "Incorrect email") {
+    errors.email = "Email not registered";
+    errors.code = 404;
+  }
+  //Incorrect password
+  if (err.message === "Incorrect password") {
+    errors.password = "Password is incorrect";
+    errors.code = 401;
+  }
+
   //Check if email exists
   if (err.code === 11000 && err.message.includes("email")) {
     errors.email = "Email Already Exists";
@@ -55,13 +66,14 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
+    if (!user) throw new Error("Incorrect email");
     const validPassword = await bcrypt.compare(password, user.password);
-    if (!user || !validPassword) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+    if (!validPassword) throw new Error("Incorrect password");
 
     if (user.twoFAEnabled) {
+      console.log("2FA enabled for user:", email);
       const resEmail = await generateOTP(email);
+      console.log("OTP sent to:", resEmail);
       return res.json({ message: `OTP sent successfully to ${resEmail}` });
     }
 
@@ -73,7 +85,9 @@ const login = async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    // console.error(error);
+    const errors = handleErrors(error);
+    res.status(errors.code || 400).json({ message: errors || "Bad Request" });
   }
 };
 
@@ -120,9 +134,45 @@ const setPin = async (req, res) => {
   const user = await User.findById(userId);
   if (!user) return res.status(404).json({ message: "User not found" });
 
-  user.pin = newPin; // Hash the new PIN before saving
+  const isMatch = await bcrypt.compare(newPin, user.pin);
+  if (isMatch)
+    return res
+      .status(400)
+      .json({ message: "New PIN cannot be same as old PIN" });
+
+  user.pin = newPin;
   await user.save();
-  return { success: true, message: "PIN set successfully!" };
+  res.status(200).json({ success: true, message: "PIN updated successfully!" });
+};
+const updatePassword = async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    // console.log("user", user);
+
+    const isMatchOld = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatchOld)
+      return res.status(400).json({ message: "Old password is incorrect" });
+
+    const isMatch = await bcrypt.compare(newPassword, user.password);
+    if (isMatch) {
+      return res
+        .status(400)
+        .json({ message: "New password cannot be same as old password" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+    res
+      .status(200)
+      .json({ success: true, message: "Password updated successfully!" });
+  } catch (error) {
+    const errors = handleErrors(error);
+    res.status(errors.code || 400).json({ message: errors || "Bad Request" });
+  }
 };
 
 const getProfile = async (req, res) => {
@@ -157,9 +207,17 @@ const updateProfile = async (req, res) => {
   }
 };
 
-const enable2FA = async (req, res) => {
+const toogle2FA = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    //Toggle 2FA
+    if (user.twoFAEnabled) {
+      user.twoFAEnabled = false;
+      await user.save();
+      return res.json({ message: "2FA disabled" });
+    }
+
     user.twoFAEnabled = true;
     await user.save();
     res.json({ message: "2FA enabled" });
@@ -173,7 +231,8 @@ export {
   login,
   getProfile,
   updateProfile,
-  enable2FA,
+  toogle2FA,
   verifyOTP,
   setPin,
+  updatePassword,
 };

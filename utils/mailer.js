@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
 
 export const sendOTP = async (email, otp) => {
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: "Support < support@gudymedia.com >",
     to: email,
     subject: "Your OTP Code",
     // text: `Your OTP code is: ${otp}. It will expire in 5 minutes.`,
