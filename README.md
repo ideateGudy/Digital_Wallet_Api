@@ -70,7 +70,7 @@ npm run dev
 | GET    | `/api/auth/profile/:id`  | Get user profile             | ✅ Yes       |
 | PATCH  | `/api/auth/profile/:id`  | Update user profile          | ✅ Yes       |
 | POST   | `/api/auth/toogle-2fa`   | Enable/Disable 2FA           | ✅ Yes       |
-| POST   | `/api/auth/verify-otp`   | Verify OTP for login/transfer | ✅ Yes       |
+| POST   | `/api/auth/verify-otp`   | Verify OTP for login/transfer | ❌ No|
 | PATCH  | `/api/auth/set-pin`      | Set transaction PIN          | ✅ Yes       |
 | PATCH  | `/api/auth/update-password` | Update user password    | ✅ Yes       |
 ```
