@@ -11,6 +11,17 @@ const UserSchema = new mongoose.Schema(
     },
     password: { type: String, required: true },
     balance: { type: Number, default: 0 },
+    // defaultCurrency: {
+    //   type: String,
+    //   enum: ["NGN", "USD", "EUR", "GBP"],
+    //   default: "NGN", // Default currency for transactions
+    // },
+    // balance: {
+    //   NGN: { type: Number, default: 0 },
+    //   USD: { type: Number, default: 0 },
+    //   EUR: { type: Number, default: 0 },
+    //   GBP: { type: Number, default: 0 },
+    // },
     twoFAEnabled: { type: Boolean, default: false },
     pin: {
       type: String,

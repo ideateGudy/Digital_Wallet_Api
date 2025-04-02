@@ -96,7 +96,7 @@ const transfer = async (req, res) => {
     if (!isPinCorrect)
       return res.status(400).json({ message: "Incorrect PIN" });
 
-    // ✅ If 2FA is enabled, generate & send OTP and store transaction details
+    //  If 2FA is enabled, generate & send OTP then store the transaction details
     if (sender.twoFAEnabled) {
       await generateOTP(sender.email);
 
@@ -111,7 +111,7 @@ const transfer = async (req, res) => {
       });
     }
 
-    // ✅ Proceed with transfer if 2FA is NOT enabled
+    // Proceed with transfer if 2FA is NOT enabled
     sender.balance -= validatedData.amount;
     receiver.balance += validatedData.amount;
     await sender.save();
@@ -148,7 +148,7 @@ const verifyTransferOTP = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ✅ Check if OTP exists and is not expired
+    // Check if OTP exists and is not expired
     const otpRecord = await Otp.findOne({ email, otp });
 
     if (!otpRecord) return res.status(400).json({ message: "OTP is invalid" });
@@ -160,14 +160,14 @@ const verifyTransferOTP = async (req, res) => {
       return res.status(400).json({ message: "Incorrect OTP" });
     }
 
-    // ✅ Retrieve the stored transaction details
+    //  Retrieve the stored transaction details
     const { amount, receiverId } = sender.pendingTransaction || {};
 
     if (!amount || !receiverId) {
       return res.status(400).json({ message: "No pending transaction found" });
     }
 
-    // ✅ Process the transfer
+    // Process the transfer
     const receiver = await User.findById(receiverId);
     if (!receiver) {
       return res.status(400).json({ message: "Recipient not found" });
@@ -190,8 +190,8 @@ const verifyTransferOTP = async (req, res) => {
       status: "success",
     });
 
-    // ✅ Cleanup: Remove OTP and pending transaction data
-    await Otp.deleteMany({ email }); // Remove used OTPs
+    // Cleanup: Remove OTP and pending transaction data
+    await Otp.deleteMany({ email });
     sender.pendingTransaction = null;
     await sender.save();
 
