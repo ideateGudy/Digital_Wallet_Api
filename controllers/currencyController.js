@@ -1,4 +1,5 @@
 import axios from "axios";
+import User from "../models/User.js";
 
 const convertCurrency = async (req, res) => {
   try {
@@ -27,4 +28,34 @@ const convertCurrency = async (req, res) => {
   }
 };
 
-export { convertCurrency };
+const currencyType = ["NGN", "USD", "EUR", "GBP"];
+
+const switchCurrency = async (req, res) => {
+  try {
+    const { newCurrency } = req.body;
+    const userId = req.user.id;
+
+    // Ensure the new currency input is valid
+    if (!currencyType.includes(newCurrency)) {
+      return res.status(400).json({ error: "Invalid currency" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update the default currency
+    user.defaultCurrency = newCurrency;
+    await user.save();
+
+    res.json({
+      message: `Currency switched to ${newCurrency}`,
+      defaultCurrency: user.defaultCurrency,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+export { convertCurrency, switchCurrency };

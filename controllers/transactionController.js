@@ -9,29 +9,39 @@ const transactionSchema = z.object({
   amount: z.number().positive(),
   receiverId: z.string().optional(),
   pin: z.string().optional(),
+  currency: z.enum(["NGN", "USD", "EUR", "GBP"]).optional(),
 });
 
 const deposit = async (req, res) => {
   try {
     const validatedData = transactionSchema.parse(req.body);
+
     // const {amount} = validatedData;
     // if (amount > 20000) return res.status(400).json({ message: "Deposit limit exceeded" });
 
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    user.balance += validatedData.amount;
+    // const currency = validatedData.currency;
+    const currency = user.defaultCurrency;
+    user.balance[currency] += validatedData.amount;
     await user.save();
+
+    const formatedAmount = user.getFormattedAmount(validatedData.amount);
 
     await Transaction.create({
       userId: user._id,
       type: "deposit",
-      amount: validatedData.amount,
+      amount: formatedAmount,
       status: "success",
     });
 
-    res.json({ message: "Deposit successful", balance: user.balance });
+    res.json({
+      message: `Deposit of ${formatedAmount} was successful`,
+      balance: user.getFormattedBalance(),
+    });
   } catch (error) {
+    console.error(error);
     res.status(400).json({ message: error.errors || "Invalid input" });
   }
 };
@@ -40,24 +50,30 @@ const withdraw = async (req, res) => {
   try {
     const validatedData = transactionSchema.parse(req.body);
     // const {amount} = validatedData;
-    // if (amount > 20000) return res.status(400).json({ message: "Withdrawal limit exceeded" });
+    // if (amount > 20000) return res.status(400).json({ message: "Maximum Withdrawal limit exceeded" });
 
     const user = await User.findById(req.user.id);
+    const currency = user.defaultCurrency;
 
-    if (user.balance < validatedData.amount)
+    if (user.balance[currency] < validatedData.amount)
       return res.status(400).json({ message: "Insufficient balance" });
 
-    user.balance -= validatedData.amount;
+    user.balance[currency] -= validatedData.amount;
     await user.save();
+
+    const formatedAmount = user.getFormattedAmount(validatedData.amount);
 
     await Transaction.create({
       userId: user._id,
       type: "withdrawal",
-      amount: validatedData.amount,
+      amount: formatedAmount,
       status: "success",
     });
 
-    res.json({ message: "Withdrawal successful", balance: user.balance });
+    res.json({
+      message: `Withdrawal of ${formatedAmount} was successful`,
+      balance: user.getFormattedBalance(),
+    });
   } catch (error) {
     res.status(400).json({ message: error.errors || "Invalid input" });
   }
@@ -70,6 +86,7 @@ const transfer = async (req, res) => {
     const receiver = await User.findById(validatedData.receiverId);
     const pin = validatedData.pin;
     console.log("validatedData", validatedData);
+    const currency = sender.defaultCurrency;
 
     if (!receiver) {
       return res
@@ -77,7 +94,7 @@ const transfer = async (req, res) => {
         .json({ message: "Invalid transfer: No recipient specified" });
     }
 
-    if (sender.balance < validatedData.amount) {
+    if (sender.balance[currency] < validatedData.amount) {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
@@ -112,26 +129,28 @@ const transfer = async (req, res) => {
     }
 
     // Proceed with transfer if 2FA is NOT enabled
-    sender.balance -= validatedData.amount;
-    receiver.balance += validatedData.amount;
+
+    sender.balance[currency] -= validatedData.amount;
+    receiver.balance[currency] += validatedData.amount;
     await sender.save();
     await receiver.save();
+
+    const formatedAmount = sender.getFormattedAmount(validatedData.amount);
 
     await Transaction.create({
       userId: sender._id,
       receiverId: receiver._id,
       type: "transfer",
-      amount: validatedData.amount,
+      amount: formatedAmount,
       status: "success",
     });
 
     res.json({
       status: "success",
-      message: `Transfer to ${receiver.name} was successful`,
-      transferAmount: validatedData.amount,
+      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful`,
       sender: sender.name,
       recipient: receiver.name,
-      balance: sender.balance,
+      balance: sender.getFormattedBalance(),
     });
   } catch (error) {
     console.error(error);
@@ -177,16 +196,19 @@ const verifyTransferOTP = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
-    sender.balance -= amount;
-    receiver.balance += amount;
+    const currency = sender.defaultCurrency;
+    sender.balance[currency] -= amount;
+    receiver.balance[currency] += amount;
     await sender.save();
     await receiver.save();
+
+    const formatedAmount = sender.getFormattedAmount(amount);
 
     await Transaction.create({
       userId: sender._id,
       receiverId: receiver._id,
       type: "transfer",
-      amount,
+      amount: formatedAmount,
       status: "success",
     });
 
@@ -197,8 +219,10 @@ const verifyTransferOTP = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      message: `Transfer of ${amount} to ${receiver.name} was successful.`,
-      balance: sender.balance,
+      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful.`,
+      sender: sender.name,
+      recipient: receiver.name,
+      balance: sender.getFormattedBalance(),
     });
   } catch (error) {
     console.error(error);
