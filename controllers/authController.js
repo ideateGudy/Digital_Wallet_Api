@@ -105,6 +105,7 @@ const verifyOTP = async (req, res) => {
     }
 
     if (new Date() > storedOtp.expiresAt) {
+      await Otp.deleteOne({ email, otp });
       return res.status(400).json({ message: "OTP expired" });
     }
 

@@ -9,7 +9,6 @@ const transactionSchema = z.object({
   amount: z.number().positive(),
   receiverId: z.string().optional(),
   pin: z.string().optional(),
-  currency: z.enum(["NGN", "USD", "EUR", "GBP"]).optional(),
 });
 
 const deposit = async (req, res) => {
@@ -22,7 +21,6 @@ const deposit = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // const currency = validatedData.currency;
     const currency = user.defaultCurrency;
     user.balance[currency] += validatedData.amount;
     await user.save();
@@ -172,8 +170,12 @@ const verifyTransferOTP = async (req, res) => {
 
     if (!otpRecord) return res.status(400).json({ message: "OTP is invalid" });
 
-    if (new Date() > otpRecord.expiresAt)
+    if (new Date() > otpRecord.expiresAt) {
+      await Otp.deleteMany({ email });
+      sender.pendingTransaction = null;
+      await sender.save();
       return res.status(400).json({ message: "OTP expired" });
+    }
 
     if (otpRecord.otp !== otp) {
       return res.status(400).json({ message: "Incorrect OTP" });
@@ -212,7 +214,7 @@ const verifyTransferOTP = async (req, res) => {
       status: "success",
     });
 
-    // Cleanup: Remove OTP and pending transaction data
+    // Remove OTP and pending transaction data
     await Otp.deleteMany({ email });
     sender.pendingTransaction = null;
     await sender.save();
