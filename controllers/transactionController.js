@@ -11,6 +11,29 @@ const transactionSchema = z.object({
   pin: z.string().optional(),
 });
 
+const detectFraud = async (userId, amount) => {
+  const recentTransactions = await Transaction.find({
+    userId,
+    createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) }, // This gets all transaction made in the last 10 minutes
+  });
+
+  const totalAmount = recentTransactions.reduce(
+    (sum, transaction) => sum + parseFloat(transaction.amount.toString()),
+    0
+  );
+
+  if (totalAmount > 5000)
+    return {
+      isFraud: true,
+      message: "Total transactions in the last 10 minutes exceed 5000",
+    };
+
+  if (amount > 2000)
+    return { isFraud: true, message: "Single transaction exceeds 2000" };
+
+  return { isFraud: false, message: "No fraud detected" };
+};
+
 const deposit = async (req, res) => {
   try {
     const validatedData = transactionSchema.parse(req.body);
@@ -53,8 +76,16 @@ const withdraw = async (req, res) => {
     const user = await User.findById(req.user.id);
     const currency = user.defaultCurrency;
 
-    if (user.balance[currency] < validatedData.amount)
+    if (user.balance[currency] < validatedData.amount) {
+      await Transaction.create({
+        userId: user._id,
+        type: "withdrawal",
+        amount: formatedAmount,
+        status: "failed",
+      });
+
       return res.status(400).json({ message: "Insufficient balance" });
+    }
 
     user.balance[currency] -= validatedData.amount;
     await user.save();
@@ -86,6 +117,24 @@ const transfer = async (req, res) => {
     console.log("validatedData", validatedData);
     const currency = sender.defaultCurrency;
 
+    const fraudCheck = await detectFraud(req.user.id, validatedData.amount);
+    console.log("fraudCheck", fraudCheck);
+    if (fraudCheck.isFraud) {
+      console.log("⚠️ Fraud Detected:", fraudCheck.message);
+      await Transaction.create({
+        userId: sender._id,
+        receiverId: receiver._id,
+        type: "transfer",
+        amount: formatedAmount,
+        status: "flagged",
+      });
+      return res
+        .status(400)
+        .json({ status: "flagged", message: fraudCheck.message });
+    } else {
+      console.log("✅ Transaction Approved:", fraudCheck.message);
+    }
+
     if (!receiver) {
       return res
         .status(400)
@@ -93,6 +142,13 @@ const transfer = async (req, res) => {
     }
 
     if (sender.balance[currency] < validatedData.amount) {
+      await Transaction.create({
+        userId: sender._id,
+        receiverId: receiver._id,
+        type: "transfer",
+        amount: formatedAmount,
+        status: "failed",
+      });
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
@@ -234,7 +290,8 @@ const verifyTransferOTP = async (req, res) => {
 
 const getTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.find()
+    const userId = req.user.id;
+    const transactions = await Transaction.find({ userId })
       .populate("userId", "name email")
       .populate("receiverId", "name email")
       .sort({ createdAt: -1 });
