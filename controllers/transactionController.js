@@ -25,7 +25,7 @@ const detectFraud = async (userId, amount) => {
   if (totalAmount > 5000)
     return {
       isFraud: true,
-      message: "Total transactions in the last 10 minutes exceed 5000",
+      message: `Total transactions in the last 10 minutes exceed 5000`,
     };
 
   if (amount > 2000)
@@ -55,6 +55,7 @@ const deposit = async (req, res) => {
       type: "deposit",
       amount: formatedAmount,
       status: "success",
+      message: `Deposit of ${formatedAmount} was successful`,
     });
 
     res.json({
@@ -82,6 +83,7 @@ const withdraw = async (req, res) => {
         type: "withdrawal",
         amount: formatedAmount,
         status: "failed",
+        message: "Insufficient balance",
       });
 
       return res.status(400).json({ message: "Insufficient balance" });
@@ -97,6 +99,7 @@ const withdraw = async (req, res) => {
       type: "withdrawal",
       amount: formatedAmount,
       status: "success",
+      message: `Withdrawal of ${formatedAmount} was successful`,
     });
 
     res.json({
@@ -114,8 +117,9 @@ const transfer = async (req, res) => {
     const sender = await User.findById(req.user.id);
     const receiver = await User.findById(validatedData.receiverId);
     const pin = validatedData.pin;
-    console.log("validatedData", validatedData);
+    // console.log("validatedData", validatedData);
     const currency = sender.defaultCurrency;
+    const formatedAmount = sender.getFormattedAmount(validatedData.amount);
 
     const fraudCheck = await detectFraud(req.user.id, validatedData.amount);
     console.log("fraudCheck", fraudCheck);
@@ -127,10 +131,13 @@ const transfer = async (req, res) => {
         type: "transfer",
         amount: formatedAmount,
         status: "flagged",
+        message: fraudCheck.message,
       });
-      return res
-        .status(400)
-        .json({ status: "flagged", message: fraudCheck.message });
+      return res.status(400).json({
+        status: "flagged",
+        message: fraudCheck.message,
+        statusCode: 400,
+      });
     } else {
       console.log("✅ Transaction Approved:", fraudCheck.message);
     }
@@ -148,6 +155,7 @@ const transfer = async (req, res) => {
         type: "transfer",
         amount: formatedAmount,
         status: "failed",
+        message: "Insufficient balance",
       });
       return res.status(400).json({ message: "Insufficient balance" });
     }
@@ -189,14 +197,13 @@ const transfer = async (req, res) => {
     await sender.save();
     await receiver.save();
 
-    const formatedAmount = sender.getFormattedAmount(validatedData.amount);
-
     await Transaction.create({
       userId: sender._id,
       receiverId: receiver._id,
       type: "transfer",
       amount: formatedAmount,
       status: "success",
+      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful`,
     });
 
     res.json({
@@ -268,6 +275,7 @@ const verifyTransferOTP = async (req, res) => {
       type: "transfer",
       amount: formatedAmount,
       status: "success",
+      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful.`,
     });
 
     // Remove OTP and pending transaction data

@@ -24,6 +24,7 @@ const TransactionSchema = new mongoose.Schema(
       default: "pending",
       required: true,
     },
+    message: { type: String, required: true },
   },
   { timestamps: true }
 );
