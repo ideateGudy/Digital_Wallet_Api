@@ -11,20 +11,26 @@ const registerSchema = z.object({
     firstName: z.string().min(1).max(30),
     lastName: z.string().min(1).max(30),
   }),
-  email: z.string().email(() => "Invalid email"),
+  email: z.string().email(() => "This is not a valid email"),
   password: z.string().min(6),
 });
 
 const handleErrors = (err) => {
-  // console.log(err.message, err.code, "here-----------------");
+  // console.log(
+  //   err.message,
+  //   err.code,
+  //   "here-----------------",
+
+  // );
 
   const errors = {};
 
-  //Incorrect email
-  if (err.message === "Incorrect email") {
-    errors.email = "Email not registered";
-    errors.code = 404;
-  }
+  if (err.message)
+    if (err.message === "Incorrect email") {
+      //Incorrect email
+      errors.email = "Email not registered";
+      errors.code = 404;
+    }
   //Incorrect password
   if (err.message === "Incorrect password") {
     errors.password = "Password is incorrect";
@@ -53,6 +59,13 @@ const handleErrors = (err) => {
     });
   }
 
+  if (err.errors) {
+    if (err.errors[0].validation === "email") {
+      errors[err.errors[0].validation] = err.errors[0].message;
+      errors.code = 400;
+    }
+  }
+
   return errors;
 };
 
@@ -69,10 +82,10 @@ const register = async (req, res) => {
     const user = await User.create(validatedData);
     res.status(201).json({ message: "User registered successfully", user });
   } catch (error) {
-    console.error("Error-------", error);
+    // console.error("Error-------", error);
     const errors = handleErrors(error);
     res
-      .status(400)
+      .status(errors.code || 400)
       .json({ message: errors || error.errors || "Invalid input" });
   }
 };
