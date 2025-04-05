@@ -6,48 +6,24 @@ import { generateOTP } from "../utils/generateOtp.js";
 import Otp from "../models/Otp.js";
 
 const transactionSchema = z.object({
+  username: z.string().min(3).max(20).optional(),
   amount: z.number().positive(),
   receiverId: z.string().optional(),
   pin: z.string().optional(),
 });
 
-// const detectFraud = async (userId, amount) => {
-//   const recentTransactions = await Transaction.find({
-//     userId,
-//     createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) }, // This gets all transaction made in the last 10 minutes
-//   });
-
-//   console.log("recentTransactions", recentTransactions);
-//   const totalAmount = recentTransactions.reduce(
-//     (sum, tx) => sum + parseFloat(tx.amount.replace(/[^0-9.]/g, "")), // Remove non-numeric characters
-//     0
-//   );
-//   console.log("totalAmount", totalAmount, "amount", amount, "userId", userId);
-
-//   if (totalAmount > 5000)
-//     return {
-//       isFraud: true,
-//       message: `Total transactions in the last 10 minutes exceed 5000`,
-//     };
-
-//   if (amount > 2000)
-//     return { isFraud: true, message: "Single transaction exceeds 2000" };
-
-//   return { isFraud: false, message: "No fraud detected" };
-// };
 const detectFraud = async (userId, amount, currency) => {
-  // Get all transactions by user in last 10 minutes with the same currency
-  console.log("currency", currency);
-
+  // Get all successfull transactions created by a user in last 10 minutes (must be same currency)
   const recentTransactions = await Transaction.find({
     userId,
     currency,
+    status: "success",
     createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
   });
 
   console.log("recentTransactions", recentTransactions);
 
-  // Currency-specific thresholds
+  // Currency-specific thresholds to detect fraud
   const limits = {
     USD: { totalLimit: 5000, singleLimit: 2000 },
     NGN: { totalLimit: 3000000, singleLimit: 1000000 },
@@ -55,29 +31,39 @@ const detectFraud = async (userId, amount, currency) => {
     GBP: { totalLimit: 3500, singleLimit: 1200 },
   };
 
-  const currencyLimits = limits[currency] || limits["USD"];
+  // Get currency name mapping to currency code
+  const currencyNameMapping = {
+    USD: "USD",
+    NGN: "Naira",
+    EUR: "Euro",
+    GBP: "Pound",
+  };
+
+  const currencyLimits = limits[currency] || limits["NGN"];
 
   const totalAmount = recentTransactions.reduce(
     (sum, tx) => sum + parseFloat(tx.amount.replace(/[^0-9.]/g, "")),
     0
   );
+  //get the currency name
+  const currencyName = currencyNameMapping[currency] || "NGN";
 
   console.log(
-    `Total ${currency} transactions in the last 10 minutes: ${totalAmount}`
+    `Total ${currencyName} transactions in the last 10 minutes: ${totalAmount}`
   );
-  console.log(`Single ${currency} transaction amount: ${amount}`);
+  console.log(`Single ${currencyName} transaction amount: ${amount}`);
 
   if (totalAmount > currencyLimits.totalLimit) {
     return {
       isFraud: true,
-      message: `Total ${currency} transactions in the last 10 minutes exceed ${currencyLimits.totalLimit}`,
+      message: `Total ${currencyName} transactions in the last 10 minutes exceed ${currencyLimits.totalLimit}`,
     };
   }
 
   if (amount > currencyLimits.singleLimit) {
     return {
       isFraud: true,
-      message: `Single ${currency} transaction exceeds ${currencyLimits.singleLimit}`,
+      message: `Single ${currencyName} transaction exceeds ${currencyLimits.singleLimit}`,
     };
   }
 
@@ -168,7 +154,12 @@ const transfer = async (req, res) => {
   try {
     const validatedData = transactionSchema.parse(req.body);
     const sender = await User.findById(req.user.id);
-    const receiver = await User.findById(validatedData.receiverId);
+    const receiver = await User.findOne({
+      $or: [
+        { _id: validatedData.receiverId },
+        { username: validatedData.username },
+      ],
+    });
     const pin = validatedData.pin;
     // console.log("validatedData", validatedData);
     const currency = sender.defaultCurrency;
@@ -263,14 +254,14 @@ const transfer = async (req, res) => {
       currency: sender.defaultCurrency,
       amount: formatedAmount,
       status: "success",
-      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful`,
+      message: `Transfer of ${formatedAmount} to ${receiver.username} was successful`,
     });
 
     res.json({
       status: "success",
-      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful`,
-      sender: sender.name,
-      recipient: receiver.name,
+      message: `Transfer of ${formatedAmount} to ${receiver.username} was successful`,
+      sender: sender.username,
+      recipient: receiver.username,
       balance: sender.getFormattedBalance(),
     });
   } catch (error) {
@@ -336,7 +327,7 @@ const verifyTransferOTP = async (req, res) => {
       currency: sender.defaultCurrency,
       amount: formatedAmount,
       status: "success",
-      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful.`,
+      message: `Transfer of ${formatedAmount} to ${receiver.username} was successful.`,
     });
 
     // Remove OTP and pending transaction data
@@ -346,9 +337,9 @@ const verifyTransferOTP = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      message: `Transfer of ${formatedAmount} to ${receiver.name} was successful.`,
-      sender: sender.name,
-      recipient: receiver.name,
+      message: `Transfer of ${formatedAmount} to ${receiver.username} was successful.`,
+      sender: sender.username,
+      recipient: receiver.username,
       balance: sender.getFormattedBalance(),
     });
   } catch (error) {

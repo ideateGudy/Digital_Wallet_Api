@@ -9,4 +9,8 @@ const otpSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index to ensure that only one OTP can be generated for a user at a time
+otpSchema.index({ email: 1 });
+otpSchema.index({ otp: 1, expiresAt: 1 });
+
 export default mongoose.model("Otp", otpSchema);

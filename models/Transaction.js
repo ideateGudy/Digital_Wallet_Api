@@ -30,4 +30,8 @@ const TransactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+TransactionSchema.index({ userId: 1, createdAt: -1 });
+TransactionSchema.index({ receiverId: 1, createdAt: -1 });
+TransactionSchema.index({ currency: 1 });
+
 export default mongoose.model("Transaction", TransactionSchema);

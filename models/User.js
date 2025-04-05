@@ -3,12 +3,22 @@ import bcrypt from "bcryptjs";
 
 const UserSchema = new mongoose.Schema(
   {
-    name: { type: String, required: 'true, "Please enter a name' },
+    name: { firstName: String, lastName: String },
+    username: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      match: [
+        /^[a-zA-Z0-9_-]+$/,
+        "Username can only contain letters, numbers, underscores (_), and dashes (-)",
+      ],
+    },
     email: {
       type: String,
       required: [true, "Please enter an email"],
-      unique: true,
     },
+    accountNumber: { type: Number }, //TODO: Generate a random 10 digits unique account number
     password: { type: String, required: true },
     // balance: { type: Number, default: 0 },
     defaultCurrency: {
@@ -38,6 +48,9 @@ const UserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ username: 1 }, { unique: true });
 
 //hash password and pin before saving
 UserSchema.pre("save", async function (next) {

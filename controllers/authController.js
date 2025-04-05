@@ -6,8 +6,12 @@ import Otp from "../models/Otp.js";
 import { generateOTP } from "../utils/generateOtp.js";
 
 const registerSchema = z.object({
-  name: z.string().min(3),
-  email: z.string().email(),
+  username: z.string().min(3).max(20),
+  name: z.object({
+    firstName: z.string().min(1).max(30),
+    lastName: z.string().min(1).max(30),
+  }),
+  email: z.string().email(() => "Invalid email"),
   password: z.string().min(6),
 });
 
@@ -32,6 +36,11 @@ const handleErrors = (err) => {
     errors.email = "Email Already Exists";
     errors.code = 409;
   }
+  //Check if username exists
+  if (err.code === 11000 && err.message.includes("username")) {
+    errors.username = "Username Already Exists";
+    errors.code = 409;
+  }
 
   //Validation Errors
   if (err.message.includes("User validation failed")) {
@@ -50,14 +59,21 @@ const handleErrors = (err) => {
 const register = async (req, res) => {
   try {
     const validatedData = registerSchema.parse(req.body);
-    const userExists = await User.findOne({ email: validatedData.email });
+    const userExists = await User.findOne({
+      email: validatedData.email,
+      username: validatedData.username,
+    });
     if (userExists)
       return res.status(400).json({ message: "User already exists" });
 
     const user = await User.create(validatedData);
     res.status(201).json({ message: "User registered successfully", user });
   } catch (error) {
-    res.status(400).json({ message: error.errors || "Invalid input" });
+    console.error("Error-------", error);
+    const errors = handleErrors(error);
+    res
+      .status(400)
+      .json({ message: errors || error.errors || "Invalid input" });
   }
 };
 
@@ -77,12 +93,16 @@ const login = async (req, res) => {
       return res.json({ message: `OTP sent successfully to ${resEmail}` });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
     res.json({
       token,
-      user: { id: user._id, name: user.name, email: user.email },
+      user: { id: user._id, name: user.username, email: user.email },
     });
   } catch (error) {
     // console.error(error);
