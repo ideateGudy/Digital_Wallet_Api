@@ -39,7 +39,6 @@ const detectFraud = async (userId, amount, currency) => {
   // Get all transactions by user in last 10 minutes with the same currency
   console.log("currency", currency);
 
-  //FIXME: This is not working as expected
   const recentTransactions = await Transaction.find({
     userId,
     currency,
