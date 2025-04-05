@@ -11,25 +11,76 @@ const transactionSchema = z.object({
   pin: z.string().optional(),
 });
 
-const detectFraud = async (userId, amount) => {
+// const detectFraud = async (userId, amount) => {
+//   const recentTransactions = await Transaction.find({
+//     userId,
+//     createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) }, // This gets all transaction made in the last 10 minutes
+//   });
+
+//   console.log("recentTransactions", recentTransactions);
+//   const totalAmount = recentTransactions.reduce(
+//     (sum, tx) => sum + parseFloat(tx.amount.replace(/[^0-9.]/g, "")), // Remove non-numeric characters
+//     0
+//   );
+//   console.log("totalAmount", totalAmount, "amount", amount, "userId", userId);
+
+//   if (totalAmount > 5000)
+//     return {
+//       isFraud: true,
+//       message: `Total transactions in the last 10 minutes exceed 5000`,
+//     };
+
+//   if (amount > 2000)
+//     return { isFraud: true, message: "Single transaction exceeds 2000" };
+
+//   return { isFraud: false, message: "No fraud detected" };
+// };
+const detectFraud = async (userId, amount, currency) => {
+  // Get all transactions by user in last 10 minutes with the same currency
+  console.log("currency", currency);
+
+  //FIXME: This is not working as expected
   const recentTransactions = await Transaction.find({
     userId,
-    createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) }, // This gets all transaction made in the last 10 minutes
+    currency,
+    createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
   });
 
+  console.log("recentTransactions", recentTransactions);
+
+  // Currency-specific thresholds
+  const limits = {
+    USD: { totalLimit: 5000, singleLimit: 2000 },
+    NGN: { totalLimit: 3000000, singleLimit: 1000000 },
+    EUR: { totalLimit: 4000, singleLimit: 1500 },
+    GBP: { totalLimit: 3500, singleLimit: 1200 },
+  };
+
+  const currencyLimits = limits[currency] || limits["USD"];
+
   const totalAmount = recentTransactions.reduce(
-    (sum, transaction) => sum + parseFloat(transaction.amount.toString()),
+    (sum, tx) => sum + parseFloat(tx.amount.replace(/[^0-9.]/g, "")),
     0
   );
 
-  if (totalAmount > 5000)
+  console.log(
+    `Total ${currency} transactions in the last 10 minutes: ${totalAmount}`
+  );
+  console.log(`Single ${currency} transaction amount: ${amount}`);
+
+  if (totalAmount > currencyLimits.totalLimit) {
     return {
       isFraud: true,
-      message: `Total transactions in the last 10 minutes exceed 5000`,
+      message: `Total ${currency} transactions in the last 10 minutes exceed ${currencyLimits.totalLimit}`,
     };
+  }
 
-  if (amount > 2000)
-    return { isFraud: true, message: "Single transaction exceeds 2000" };
+  if (amount > currencyLimits.singleLimit) {
+    return {
+      isFraud: true,
+      message: `Single ${currency} transaction exceeds ${currencyLimits.singleLimit}`,
+    };
+  }
 
   return { isFraud: false, message: "No fraud detected" };
 };
@@ -53,6 +104,7 @@ const deposit = async (req, res) => {
     await Transaction.create({
       userId: user._id,
       type: "deposit",
+      currency: user.defaultCurrency,
       amount: formatedAmount,
       status: "success",
       message: `Deposit of ${formatedAmount} was successful`,
@@ -81,6 +133,7 @@ const withdraw = async (req, res) => {
       await Transaction.create({
         userId: user._id,
         type: "withdrawal",
+        currency: user.defaultCurrency,
         amount: formatedAmount,
         status: "failed",
         message: "Insufficient balance",
@@ -97,6 +150,7 @@ const withdraw = async (req, res) => {
     await Transaction.create({
       userId: user._id,
       type: "withdrawal",
+      currency: user.defaultCurrency,
       amount: formatedAmount,
       status: "success",
       message: `Withdrawal of ${formatedAmount} was successful`,
@@ -121,14 +175,19 @@ const transfer = async (req, res) => {
     const currency = sender.defaultCurrency;
     const formatedAmount = sender.getFormattedAmount(validatedData.amount);
 
-    const fraudCheck = await detectFraud(req.user.id, validatedData.amount);
-    console.log("fraudCheck", fraudCheck);
+    const fraudCheck = await detectFraud(
+      req.user.id,
+      validatedData.amount,
+      sender.defaultCurrency
+    );
+    console.log("fraudCheck", fraudCheck, "validatedData", validatedData);
     if (fraudCheck.isFraud) {
       console.log("⚠️ Fraud Detected:", fraudCheck.message);
       await Transaction.create({
         userId: sender._id,
         receiverId: receiver._id,
         type: "transfer",
+        currency: sender.defaultCurrency,
         amount: formatedAmount,
         status: "flagged",
         message: fraudCheck.message,
@@ -153,6 +212,7 @@ const transfer = async (req, res) => {
         userId: sender._id,
         receiverId: receiver._id,
         type: "transfer",
+        currency: sender.defaultCurrency,
         amount: formatedAmount,
         status: "failed",
         message: "Insufficient balance",
@@ -201,6 +261,7 @@ const transfer = async (req, res) => {
       userId: sender._id,
       receiverId: receiver._id,
       type: "transfer",
+      currency: sender.defaultCurrency,
       amount: formatedAmount,
       status: "success",
       message: `Transfer of ${formatedAmount} to ${receiver.name} was successful`,
@@ -273,6 +334,7 @@ const verifyTransferOTP = async (req, res) => {
       userId: sender._id,
       receiverId: receiver._id,
       type: "transfer",
+      currency: sender.defaultCurrency,
       amount: formatedAmount,
       status: "success",
       message: `Transfer of ${formatedAmount} to ${receiver.name} was successful.`,

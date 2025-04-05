@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { formatBalance } from "../utils/formatBalance.js";
 
 const UserSchema = new mongoose.Schema(
   {
