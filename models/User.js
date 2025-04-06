@@ -18,7 +18,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please enter an email"],
     },
-    accountNumber: { type: Number }, //TODO: Generate a random 10 digits unique account number
+    accountNumber: { type: String, unique: true }, //TODO: Generate a random 10 digits unique account number
     password: { type: String, required: true },
     // balance: { type: Number, default: 0 },
     defaultCurrency: {
@@ -108,5 +108,28 @@ UserSchema.methods.getFormattedBalance = function () {
 
   return `${symbol}${balance}`;
 };
+
+UserSchema.pre("save", async function (next) {
+  if (this.isNew && !this.accountNumber) {
+    let unique = false;
+
+    while (!unique) {
+      // Generate 8 random digits after '25'
+      const randomDigits = Math.floor(10000000 + Math.random() * 90000000); // ensures its 8 digits long
+      const newAccountNumber = `25${randomDigits}`;
+
+      // Check if it already exists in the DB
+      const existingUser = await mongoose.model("User").findOne({
+        accountNumber: newAccountNumber,
+      });
+
+      if (!existingUser) {
+        this.accountNumber = newAccountNumber;
+        unique = true;
+      }
+    }
+  }
+  next();
+});
 
 export default mongoose.model("User", UserSchema);

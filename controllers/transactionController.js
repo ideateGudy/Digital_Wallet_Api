@@ -4,71 +4,15 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { generateOTP } from "../utils/generateOtp.js";
 import Otp from "../models/Otp.js";
+import { detectFraud } from "../utils/fraudDetection.js";
 
 const transactionSchema = z.object({
   username: z.string().min(3).max(20).optional(),
+  accountNumber: z.string().length(10).optional(),
   amount: z.number().positive(),
   receiverId: z.string().optional(),
   pin: z.string().optional(),
 });
-
-const detectFraud = async (userId, amount, currency) => {
-  // Get all successfull transactions created by a user in last 10 minutes (must be same currency)
-  const recentTransactions = await Transaction.find({
-    userId,
-    currency,
-    status: "success",
-    createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
-  });
-
-  console.log("recentTransactions", recentTransactions);
-
-  // Currency-specific thresholds to detect fraud
-  const limits = {
-    USD: { totalLimit: 5000, singleLimit: 2000 },
-    NGN: { totalLimit: 3000000, singleLimit: 1000000 },
-    EUR: { totalLimit: 4000, singleLimit: 1500 },
-    GBP: { totalLimit: 3500, singleLimit: 1200 },
-  };
-
-  // Get currency name mapping to currency code
-  const currencyNameMapping = {
-    USD: "USD",
-    NGN: "Naira",
-    EUR: "Euro",
-    GBP: "Pound",
-  };
-
-  const currencyLimits = limits[currency] || limits["NGN"];
-
-  const totalAmount = recentTransactions.reduce(
-    (sum, tx) => sum + parseFloat(tx.amount.replace(/[^0-9.]/g, "")),
-    0
-  );
-  //get the currency name
-  const currencyName = currencyNameMapping[currency] || "NGN";
-
-  console.log(
-    `Total ${currencyName} transactions in the last 10 minutes: ${totalAmount}`
-  );
-  console.log(`Single ${currencyName} transaction amount: ${amount}`);
-
-  if (totalAmount > currencyLimits.totalLimit) {
-    return {
-      isFraud: true,
-      message: `Total ${currencyName} transactions in the last 10 minutes exceed ${currencyLimits.totalLimit}`,
-    };
-  }
-
-  if (amount > currencyLimits.singleLimit) {
-    return {
-      isFraud: true,
-      message: `Single ${currencyName} transaction exceeds ${currencyLimits.singleLimit}`,
-    };
-  }
-
-  return { isFraud: false, message: "No fraud detected" };
-};
 
 const deposit = async (req, res) => {
   try {
@@ -81,10 +25,40 @@ const deposit = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const currency = user.defaultCurrency;
+    const formatedAmount = user.getFormattedAmount(validatedData.amount);
+
+    //---------------------------------------------------------------------------------------//
+    const type = "deposit";
+    const fraudCheck = await detectFraud(
+      req.user.id,
+      validatedData.amount,
+      currency,
+      type
+    );
+
+    console.log("fraudCheck", fraudCheck, "validatedData", validatedData);
+    if (fraudCheck.isFraud) {
+      console.log("⚠️ Fraud Detected:", fraudCheck.message);
+      await Transaction.create({
+        userId: user._id,
+        type: "deposit",
+        currency: user.defaultCurrency,
+        amount: formatedAmount,
+        status: "flagged",
+        message: fraudCheck.message,
+      });
+      return res.status(400).json({
+        status: "flagged",
+        message: fraudCheck.message,
+        statusCode: 400,
+      });
+    } else {
+      console.log("✅ Transaction Approved:", fraudCheck.message);
+    }
+    //---------------------------------------------------------------------------------------//
+
     user.balance[currency] += validatedData.amount;
     await user.save();
-
-    const formatedAmount = user.getFormattedAmount(validatedData.amount);
 
     await Transaction.create({
       userId: user._id,
@@ -113,6 +87,37 @@ const withdraw = async (req, res) => {
 
     const user = await User.findById(req.user.id);
     const currency = user.defaultCurrency;
+    const formatedAmount = user.getFormattedAmount(validatedData.amount);
+
+    //---------------------------------------------------------------------------------------//
+    const type = "withdrawal";
+    const fraudCheck = await detectFraud(
+      req.user.id,
+      validatedData.amount,
+      currency,
+      type
+    );
+
+    console.log("fraudCheck", fraudCheck, "validatedData", validatedData);
+    if (fraudCheck.isFraud) {
+      console.log("⚠️ Fraud Detected:", fraudCheck.message);
+      await Transaction.create({
+        userId: user._id,
+        type: "withdrawal",
+        currency: user.defaultCurrency,
+        amount: formatedAmount,
+        status: "flagged",
+        message: fraudCheck.message,
+      });
+      return res.status(400).json({
+        status: "flagged",
+        message: fraudCheck.message,
+        statusCode: 400,
+      });
+    } else {
+      console.log("✅ Transaction Approved:", fraudCheck.message);
+    }
+    //---------------------------------------------------------------------------------------//
 
     if (user.balance[currency] < validatedData.amount) {
       await Transaction.create({
@@ -130,8 +135,6 @@ const withdraw = async (req, res) => {
     user.balance[currency] -= validatedData.amount;
     await user.save();
 
-    const formatedAmount = user.getFormattedAmount(validatedData.amount);
-
     await Transaction.create({
       userId: user._id,
       type: "withdrawal",
@@ -146,6 +149,7 @@ const withdraw = async (req, res) => {
       balance: user.getFormattedBalance(),
     });
   } catch (error) {
+    console.error(error);
     res.status(400).json({ message: error.errors || "Invalid input" });
   }
 };
@@ -158,18 +162,22 @@ const transfer = async (req, res) => {
       $or: [
         { _id: validatedData.receiverId },
         { username: validatedData.username },
+        { accountNumber: validatedData.accountNumber },
       ],
     });
     const pin = validatedData.pin;
     // console.log("validatedData", validatedData);
     const currency = sender.defaultCurrency;
     const formatedAmount = sender.getFormattedAmount(validatedData.amount);
+    const type = "transfer";
 
     const fraudCheck = await detectFraud(
       req.user.id,
       validatedData.amount,
-      sender.defaultCurrency
+      currency,
+      type
     );
+
     console.log("fraudCheck", fraudCheck, "validatedData", validatedData);
     if (fraudCheck.isFraud) {
       console.log("⚠️ Fraud Detected:", fraudCheck.message);
