@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import validator from "validator";
 
 const UserSchema = new mongoose.Schema(
   {
     googleId: { type: String, unique: true, sparse: true },
     name: { firstName: String, lastName: String },
-    //fullName = name.firstName + " " + name.lastName
-    // fullName: { type: String, required: true },
     fullName: {
       type: String,
       required: true,
@@ -20,6 +19,8 @@ const UserSchema = new mongoose.Schema(
       required: true,
       trim: true,
       lowercase: true,
+      minlength: [3, "Username must be at least 3 characters long"],
+      maxlength: [30, "Username must be at most 20 characters long"],
       match: [
         /^[a-zA-Z0-9_-]+$/,
         "Username can only contain letters, numbers, underscores (_), and dashes (-)",
@@ -28,6 +29,9 @@ const UserSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Please enter an email"],
+      lowercase: true,
+      validate: [validator.isEmail, "Please enter a valid email"],
+      trim: true,
     },
     accountNumber: { type: String, unique: true }, //TODO: Generate a random 10 digits unique account number
     password: { type: String, required: true },
