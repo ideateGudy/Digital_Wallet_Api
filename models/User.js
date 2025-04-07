@@ -26,12 +26,35 @@ const UserSchema = new mongoose.Schema(
       enum: ["NGN", "USD", "EUR", "GBP"],
       default: "NGN", // Default currency for transactions
     },
+    // balance: {
+    //   NGN: { type: Number, default: 0 },
+    //   USD: { type: Number, default: 0 },
+    //   EUR: { type: Number, default: 0 },
+    //   GBP: { type: Number, default: 0 },
+    // },
     balance: {
-      NGN: { type: Number, default: 0 },
-      USD: { type: Number, default: 0 },
-      EUR: { type: Number, default: 0 },
-      GBP: { type: Number, default: 0 },
+      NGN: {
+        type: Number,
+        default: 0,
+        set: (v) => Math.round(v * 100) / 100,
+      },
+      USD: {
+        type: Number,
+        default: 0,
+        set: (v) => Math.round(v * 100) / 100,
+      },
+      EUR: {
+        type: Number,
+        default: 0,
+        set: (v) => Math.round(v * 100) / 100,
+      },
+      GBP: {
+        type: Number,
+        default: 0,
+        set: (v) => Math.round(v * 100) / 100,
+      },
     },
+
     twoFAEnabled: { type: Boolean, default: false },
     pin: {
       type: String,

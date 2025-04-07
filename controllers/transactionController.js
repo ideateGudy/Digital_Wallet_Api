@@ -90,7 +90,7 @@ const withdraw = async (req, res) => {
     const formatedAmount = user.getFormattedAmount(validatedData.amount);
 
     //---------------------------------------------------------------------------------------//
-    const type = "withdrawal";
+    const type = "withdraw";
     const fraudCheck = await detectFraud(
       req.user.id,
       validatedData.amount,
@@ -103,7 +103,7 @@ const withdraw = async (req, res) => {
       console.log("⚠️ Fraud Detected:", fraudCheck.message);
       await Transaction.create({
         userId: user._id,
-        type: "withdrawal",
+        type: "withdraw",
         currency: user.defaultCurrency,
         amount: formatedAmount,
         status: "flagged",
@@ -122,7 +122,7 @@ const withdraw = async (req, res) => {
     if (user.balance[currency] < validatedData.amount) {
       await Transaction.create({
         userId: user._id,
-        type: "withdrawal",
+        type: "withdraw",
         currency: user.defaultCurrency,
         amount: formatedAmount,
         status: "failed",
@@ -137,7 +137,7 @@ const withdraw = async (req, res) => {
 
     await Transaction.create({
       userId: user._id,
-      type: "withdrawal",
+      type: "withdraw",
       currency: user.defaultCurrency,
       amount: formatedAmount,
       status: "success",
