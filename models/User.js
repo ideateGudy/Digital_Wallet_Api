@@ -3,7 +3,18 @@ import bcrypt from "bcryptjs";
 
 const UserSchema = new mongoose.Schema(
   {
+    googleId: { type: String, unique: true, sparse: true },
     name: { firstName: String, lastName: String },
+    //fullName = name.firstName + " " + name.lastName
+    // fullName: { type: String, required: true },
+    fullName: {
+      type: String,
+      required: true,
+      set: function (v) {
+        return `${this.name.firstName} ${this.name.lastName}`;
+      },
+    },
+
     username: {
       type: String,
       required: true,
