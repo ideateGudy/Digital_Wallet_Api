@@ -5,7 +5,7 @@ const transporter = nodemailer.createTransport({
   service: "Gmail",
   host: "smtp.gmail.com",
   port: 587,
-  secure: true,
+  secure: false,
 
   auth: {
     user: process.env.EMAIL_USER, // Your email
@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
 
 export const sendOTP = async (email, otp) => {
   const mailOptions = {
-    from: "Support < support@gudymedia.com >",
+    from: '"Support" <support@gudymedia.com>',
     to: email,
     subject: "Your OTP Code",
     // text: `Your OTP code is: ${otp}. It will expire in 5 minutes.`,
@@ -53,11 +53,12 @@ export const sendOTP = async (email, otp) => {
         </html>
     `,
   };
-
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`OTP sent to ${email}`);
-  } catch (error) {
-    console.error("Error sending OTP:", error);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`OTP sent to ${email} | Message ID: ${info.messageId}`);
+    return email;
+  } catch (err) {
+    console.error("Failed to send OTP:", err);
+    throw new Error("Failed to send OTP. Please try again.");
   }
 };
